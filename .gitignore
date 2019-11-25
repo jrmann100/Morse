@@ -31,4 +31,5 @@
 *.out
 *.app
 
+# Darn you VSCode
 .vscode
