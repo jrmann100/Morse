@@ -1,43 +1,78 @@
+#include <cmath>
 #include <iostream>
 #include <map>
-#include <string>
 #include <vector>
+
+//#define debug
+
+// Greatest number of morse characters.
+#define MAXCHARS 7
+
 using namespace std;
 
+int morse2num(const char *data) {
+    int output = 0;
+    int places = MAXCHARS - 1;
+    for (int i = places; i >= 0 && places - i <= strlen(data); i--) {
+        if (data[places - i] == '.') {
+            output -= pow(2, i);
+        } else if (data[places - i] == '-') {
+            output += pow(2, i);
+        }
+    }
+    return output;
+}
 
 // Tree node, with data and left/right node pointers.
 struct Node {
-    const char* data;
+    const char *data;
+    int numeric;
+    char character;
     struct Node *left, *right;
-    Node(const char* data) {
+    Node(char character, const char *data) {
         this->data = data;
+        this->numeric = morse2num(data);
+        this->character = character;
         left = right = NULL;
     }
+    Node(int numeric) { this->numeric = numeric; }
 };
 
-map<char, const char*> morse = {
-    {'A', ".-"},    {'B', "-..."},  {'C', "-.-."},  {'D', "-.."},
-    {'E', "."},     {'F', "..-."},  {'G', "--."},   {'H', "...."},
-    {'I', ".."},    {'J', ".---"},  {'K', "-.-"},   {'L', ".-.."},
-    {'M', "--"},    {'N', "-."},    {'O', "---"},   {'P', ".--."},
-    {'Q', "--.-"},  {'R', ".-."},   {'S', "..."},   {'T', "-"},
-    {'U', "..-"},   {'V', "...-"},  {'W', ".--"},   {'X', "-..-"},
-    {'Y', "-.--"},  {'Z', "--.."},  {'0', "-----"}, {'1', ".----"},
-    {'2', "..---"}, {'3', "...--"}, {'4', "....-"}, {'5', "....."},
-    {'6', "-...."}, {'7', "--..."}, {'8', "---.."}, {'9', "----."},
-};
+map<char, const char *> morseLetters = {
+    {'A', ".-"},         {'B', "-..."},       {'C', "-.-."},
+    {'D', "-.."},        {'E', "."},          {'F', "..-."},
+    {'G', "--."},        {'H', "...."},       {'I', ".."},
+    {'J', ".---"},       {'K', "-.-"},        {'L', ".-.."},
+    {'M', "--"},         {'N', "-."},         {'O', "---"},
+    {'P', ".--."},       {'Q', "--.-"},       {'R', ".-."},
+    {'S', "..."},        {'T', "-"},          {'U', "..-"},
+    {'V', "...-"},       {'W', ".--"},        {'X', "-..-"},
+    {'Y', "-.--"},       {'Z', "--.."},       {'0', "-----"},
+    {L'\uFFF0', "..--"}, {L'\uFFF1', ".--."}, {L'\uFFF2', "---"},
+    {L'\uFFF3', "----"}};
+
+// Morse numbers and special characters should only be
+// inserted onto a balanced tree, or a tree that will not be balanced.
+map<char, const char *> morseOthers = {
+    {'1', ".----"},   {'2', "..---"},   {'3', "...--"},  {'4', "....-"},
+    {'5', "....."},   {'6', "-...."},   {'7', "--..."},  {'8', "---.."},
+    {'9', "----."},   {'.', ".-.-.-"},  {',', "--..--"}, {'?', "..--.."},
+    {'\'', ".----."}, {'!', "-.-.--"},  {'/', "-..-."},  {'(', "-.--."},
+    {')', "-.--.-"},  {'&', ".-..."},   {':', "---..."}, {';', "-.-.-."},
+    {'=', "-...-"},   {'+', ".-.-."},   {'-', "-....-"}, {'_', "..--.-"},
+    {'"', ".-..-."},  {'$', "...-..-"}, {'@', ".--.-."}};
 
 // Recursively determine where to insert a value in a tree,
 // starting with the root node and binary searching for the position
 // at which to create the new node.
-Node *insert(Node *thisNode, const char* value) {
+Node *insert(Node *thisNode, char character, const char *value) {
     if (thisNode == NULL) {
-        return new Node(value);
+        return new Node(character, value);
     }
-    if (strcmp(value, thisNode->data) > 0) {
-        thisNode->left = insert(thisNode->left, value);
-    } else if (strcmp(value, thisNode->data) < 0) {
-        thisNode->right = insert(thisNode->right, value);
+    if (morse2num(value) > thisNode->numeric) {
+        thisNode->left = insert(thisNode->left, character, value);
+    } else if (morse2num(value) < thisNode->numeric) {
+        thisNode->right = insert(thisNode->right, character, value);
     }
     return thisNode;
 }
@@ -47,7 +82,7 @@ void traverse(Node *thisNode) {
     if (thisNode->left) {
         traverse(thisNode->left);
     }
-    cout << thisNode->data << endl;
+    cout << thisNode->character << " : " << thisNode->data << endl;
     if (thisNode->right) {
         traverse(thisNode->right);
     }
@@ -79,6 +114,25 @@ Node *raise(vector<Node *> list) {
         vector<Node *>(list.begin(), list.begin() + (list.size() / 2));
     vector<Node *> rightNodes = vector<Node *>(
         list.begin() + list.size() / 2 + 1, list.begin() + list.size());
+
+#ifdef debug
+    printf("Center is index %d, value %s\n", (int)list.size() / 2,
+           list[list.size() / 2]->data);
+    cout << endl;
+    cout << "Left: ";
+    for (Node *node :
+         vector<Node *>(list.begin(), list.begin() + ((int)list.size() / 2))) {
+        cout << node->data << " ";
+    }
+    cout << endl;
+    cout << "Right: ";
+    for (Node *node : vector<Node *>(list.begin() + list.size() / 2 + 1,
+                                     list.begin() + list.size())) {
+        cout << node->data << " ";
+    }
+    cout << endl;
+#endif
+
     if (leftNodes.size() > 0) {
         list[list.size() / 2]->left = raise(leftNodes);
     }
@@ -91,28 +145,27 @@ Node *raise(vector<Node *> list) {
 int main() {
     cout << "Morse Utility" << endl;
 
-    map<char, const char*>::iterator iter = morse.begin();
-    Node *root = new Node(iter->second);
-    iter++;
+    Node *root = new Node(0);
+    root->data = "ROOT";
 
-    // for (iter; iter != morse.end(); iter++) {
-    //     insert(root, iter->second);
-    // }
-    
-    // while (iter != morse.end()){
-    //     cout << iter->second << endl;
-    //     //insert(root, iter->second);
-    //     iter++;
-    // }
+    map<char, const char *>::iterator iter = morseLetters.begin();
+    while (iter != morseLetters.end()) {
+        insert(root, iter->first, iter->second);
+        iter++;
+    }
+    vector<Node *> collapsed;
+    collapse(root, &collapsed);
+    /*for (auto n : collapsed) {
+        printf("%-5s %3d\n", n->data, n->numeric);
+    }*/
+    Node *newRoot = raise(collapsed);
 
-    cout << morse['A'] << endl;
-    cout << morse['B'] << endl;
-    cout << morse['C'] << endl;
-    cout << strcmp(morse['A'], morse['C']) << endl;
+    iter = morseOthers.begin();
+    while (iter != morseOthers.end()) {
+        insert(root, iter->first, iter->second);
+        iter++;
+    }
 
-    // vector<Node *> collapsed;
-    // collapse(root, &collapsed);
-    // Node *newRoot = raise(collapsed);
-    // traverse(newRoot);
-    // return 0;
+    traverse(newRoot);
+    return 0;
 }
