@@ -47,20 +47,19 @@ map<char, const char *> morseLetters = {
     {'P', ".--."},       {'Q', "--.-"},       {'R', ".-."},
     {'S', "..."},        {'T', "-"},          {'U', "..-"},
     {'V', "...-"},       {'W', ".--"},        {'X', "-..-"},
-    {'Y', "-.--"},       {'Z', "--.."},       {'0', "-----"},
-    {L'\uFFF0', "..--"}, {L'\uFFF1', ".--."}, {L'\uFFF2', "---"},
-    {L'\uFFF3', "----"}};
+    {'Y', "-.--"},       {'Z', "--.."},       {L'\uFFF0', "..--"},
+    {L'\uFFF1', ".-.-"}, {L'\uFFF2', "---."}, {L'\uFFF3', "----"}};
 
 // Morse numbers and special characters should only be
 // inserted onto a balanced tree, or a tree that will not be balanced.
 map<char, const char *> morseOthers = {
-    {'1', ".----"},   {'2', "..---"},   {'3', "...--"},  {'4', "....-"},
-    {'5', "....."},   {'6', "-...."},   {'7', "--..."},  {'8', "---.."},
-    {'9', "----."},   {'.', ".-.-.-"},  {',', "--..--"}, {'?', "..--.."},
-    {'\'', ".----."}, {'!', "-.-.--"},  {'/', "-..-."},  {'(', "-.--."},
-    {')', "-.--.-"},  {'&', ".-..."},   {':', "---..."}, {';', "-.-.-."},
-    {'=', "-...-"},   {'+', ".-.-."},   {'-', "-....-"}, {'_', "..--.-"},
-    {'"', ".-..-."},  {'$', "...-..-"}, {'@', ".--.-."}};
+    {'0', "-----"},  {'1', ".----"},   {'2', "..---"},   {'3', "...--"},
+    {'4', "....-"},  {'5', "....."},   {'6', "-...."},   {'7', "--..."},
+    {'8', "---.."},  {'9', "----."},   {'.', ".-.-.-"},  {',', "--..--"},
+    {'?', "..--.."}, {'\'', ".----."}, {'!', "-.-.--"},  {'/', "-..-."},
+    {'(', "-.--."},  {')', "-.--.-"},  {'&', ".-..."},   {':', "---..."},
+    {';', "-.-.-."}, {'=', "-...-"},   {'+', ".-.-."},   {'-', "-....-"},
+    {'_', "..--.-"}, {'"', ".-..-."},  {'$', "...-..-"}, {'@', ".--.-."}};
 
 // Recursively determine where to insert a value in a tree,
 // starting with the root node and binary searching for the position
@@ -142,8 +141,29 @@ Node *raise(vector<Node *> list) {
     return list[list.size() / 2];
 }
 
+Node *follow(Node *thisNode, const char *morse, int pathPointer) {
+    if (strlen(morse) == pathPointer) {
+        return thisNode;
+    }
+    if (morse[pathPointer] == '.') {
+        return follow(thisNode->right, morse, ++pathPointer);
+    }
+    if (morse[pathPointer] == '-') {
+        return follow(thisNode->left, morse, ++pathPointer);
+    }
+    return NULL;
+}
+
+string assembleString(string morses, Node *root) {
+    if (morses.find(' ') == string::npos) {
+        return string(1, follow(root, morses.c_str(), 0)->character);
+    }
+    return assembleString(morses.substr(0, morses.find(' ')), root) +
+           assembleString(morses.substr(morses.find(' ') + 1), root);
+}
+
 int main() {
-    cout << "Morse Utility" << endl;
+    cout << "Jordan's Morse Code Tree Utility." << endl;
 
     Node *root = new Node(0);
     root->data = "ROOT";
@@ -161,11 +181,23 @@ int main() {
     Node *newRoot = raise(collapsed);
 
     iter = morseOthers.begin();
+
+#ifdef debug
+    traverse(newRoot);
+#endif
+
     while (iter != morseOthers.end()) {
         insert(root, iter->first, iter->second);
         iter++;
     }
 
-    traverse(newRoot);
+    string completedString = assembleString(
+        "- .... .. ... ..--.- .... .- ... ..--.- - .- -.- . -. ..--.- "
+        "-- . ..--.- .- .-.. .-.. ..--.- -. .. --. .... - .-.-.- ..--.- "
+        ".. ..--.- .--- ..- ... - ..--.- .... --- .--. . ..--.- .. - "
+        "..--.- .-- .- ... ..--.- .-- --- .-. - .... ..--.- .. - .-.-.-",
+        newRoot);
+    replace(completedString.begin(), completedString.end(), '_', ' ');
+    cout << completedString << endl;
     return 0;
 }
